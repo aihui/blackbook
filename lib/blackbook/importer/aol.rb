@@ -27,11 +27,14 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
     form.password = options[:password]
     page = agent.submit(form, form.buttons.first)
 
-    raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." ) if page.body =~ /Invalid Screen Name or Password. Please try again./
+    # Fix by Tony Amoyal (I have seen forms with both of these names upon bad login)
+    raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." ) if page.form('loginForm')
+    raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." ) if page.form('AOLLoginForm')
 
+    # Fix by Tony Amoyal (We don't seem to need this anymore)
     # aol bumps to a wait page while logging in.  if we can't scrape out the js then its a bad login
-    wait_url = page.body.scan(/onLoad="checkError[^\)]+/).first.scan(/'([^']+)'/).last.first
-    page = agent.get wait_url
+    # wait_url = page.body.scan(/onLoad="checkError[^\)]+/).first.scan(/'([^']+)'/).last.first
+    # page = agent.get wait_url
 
     base_uri = page.body.scan(/^var gSuccessPath = \"(.+)\";/).first.first
     raise( Blackbook::BadCredentialsError, "You do not appear to be signed in." ) unless base_uri
