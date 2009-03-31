@@ -1,3 +1,9 @@
+== 1.0.6 / 2009-3-31
+
+* fixed aol importing issue
+* mobile numbers included in aol import
+* much more info included in yahoo import
+
 == 1.0.5 / 2008-11-26
 
 * moved to github

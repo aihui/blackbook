@@ -22,7 +22,15 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
   def login
     page = agent.get( 'http://webmail.aol.com/' )
 
-    form = page.forms.name('AOLLoginForm').first
+    # This line seems to have problems, not sure why
+    # form = page.forms.name('AOLLoginForm').first
+    
+    # Try this method
+    form = nil
+    page.forms.each do |f|
+      if f.name == 'AOLLoginForm' then form = f end
+    end
+        
     form.loginId = options[:username].split('@').first # Drop the domain
     form.password = options[:password]
     page = agent.submit(form, form.buttons.first)
@@ -75,7 +83,7 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
     names = page.body.scan( /<span class="fullName">([^<]+)<\/span>/ ).flatten
     emails = page.body.scan( /<span>Email 1:<\/span> <span>([^<]+)<\/span>/ ).flatten
     mobiles = page.body.scan( /<span>Mobile: <\/span><span>([^<]+)<\/span>/ ).flatten
-    
+
     (0...[names.size,emails.size,mobiles.size].max).collect do |i|
       {
         :name => names[i],

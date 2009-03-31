@@ -47,13 +47,39 @@ class Blackbook::Importer::Yahoo < Blackbook::Importer::PageScraper
     csv = agent.submit(form, form.buttons[2]) # third button is Yahoo-format CSV
     
     contact_rows = FasterCSV.parse(csv.body)
+    
     labels = contact_rows.shift # TODO: Actually use the labels to find the indexes of the data we want
+    # puts labels.inspect
+    
+    _FIRST = labels.index("First")
+    _LAST = labels.index("Last")
+    _EMAIL = labels.index("Email")
+    _MESSENGER_ID = labels.index("Messenger ID")
+    _MOBILE = labels.index("Mobile")
+    _HOME_ZIP = labels.index("Home ZIP")
+    _WORK_ZIP = labels.index("Work ZIP")
+    _HOME_CITY = labels.index("Home City")
+    _WORK_CITY = labels.index("Work City")
+    _HOME_STATE = labels.index("Home State")
+    _WORK_STATE = labels.index("Work State")
+    
     contact_rows.collect do |row|
-      next if !row[7].empty? && options[:username] =~ /^#{row[7]}/ # Don't collect self
+      # Add this condition in the loop below if you care about collecting yourself
+      # next if !row[7].empty? && options[:username] =~ /^#{row[7]}/ # Don't collect self
+      
+      #collect the contact if we have email address OR mobile #
+      next if row[_EMAIL].empty? && row[_MESSENGER_ID].empty? && row[_MOBILE].empty? 
       {
-        :name  => "#{row[0]} #{row[2]}".to_s, 
-        :email => (row[4] || "#{row[7]}@yahoo.com") # email is a field in the data, but will be blank for Yahoo users so we create their email address    
-      } 
+        :name  => "#{row[_FIRST]} #{row[_LAST]}".to_s,
+        :email => (row[_EMAIL] || "#{row[_MESSENGER_ID]}@yahoo.com"),
+        :mobile => row[_MOBILE],
+        :home_zip => row[_HOME_ZIP],
+        :work_zip => row[_WORK_ZIP],
+        :home_city => row[_HOME_CITY],
+        :work_city => row[_WORK_CITY],
+        :home_state => row[_HOME_STATE],
+        :work_state => row[_WORK_STATE]
+      }
     end
   end
   
