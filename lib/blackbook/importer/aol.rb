@@ -74,10 +74,13 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
     # Grab all the contacts
     names = page.body.scan( /<span class="fullName">([^<]+)<\/span>/ ).flatten
     emails = page.body.scan( /<span>Email 1:<\/span> <span>([^<]+)<\/span>/ ).flatten
-    (0...[names.size,emails.size].max).collect do |i|
+    mobiles = page.body.scan( /<span>Mobile: <\/span><span>([^<]+)<\/span>/ ).flatten
+    
+    (0...[names.size,emails.size,mobiles.size].max).collect do |i|
       {
         :name => names[i],
-        :email => emails[i]
+        :email => emails[i],
+        :mobile => mobiles[i]
       }
     end
   end
