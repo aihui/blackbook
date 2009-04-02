@@ -1,9 +1,10 @@
 require './lib/blackbook'
 
 def test_yahoo
-  yahoo = Blackbook.get :username => "tonyamoyal@yahoo.com", :password => "Jakids5981"
-  # puts "===== yahoo #{yahoo.inspect}"
+  yahoo = Blackbook.get :username => '<insert email address>', :password => '<insert password>'
+  puts "===== yahoo #{yahoo.inspect}"
   
+  # example contact info test
   unless yahoo.detect{ |c| c[:name].downcase == 'AAA AAB'.downcase &&
                            c[:email] == '2404173112@vtext.com' &&
                            c[:mobile] == '(240) 417 3112' &&
@@ -20,9 +21,10 @@ def test_yahoo
 end
 
 def test_hotmail
-  hotmail = Blackbook.get :username => "sauce2222@hotmail.com", :password => "heather"
+  hotmail = Blackbook.get :username => '<insert email address>', :password => '<insert password>'
   puts "===== hotmail #{hotmail.inspect}"
 
+# example contact info test
   unless hotmail.detect{|c| c[:name].downcase == 'Aaron Greenblatt'.downcase && c[:email] == 'green3521@erols.com'}
     puts "Hotmail not working"
     exit 1
@@ -30,13 +32,15 @@ def test_hotmail
 end
 
 def test_aol
-  aol = Blackbook.get :username => 'corgan1003@aol.com', :password => 'jakids'
-  # puts "===== aol #{aol.inspect}"
+  aol = Blackbook.get :username => '<insert email address>', :password => '<insert password>'
+  puts "===== aol #{aol.inspect}"
 
-  unless aol.detect{ |c| c[:name].downcase == 'Joseph Amoyal'.downcase && 
-                         c[:email] == 'wiggles100@aol.com' &&
-                         c[:mobile] == '4436109080'
+  # example contact info test
+  unless aol.detect{ |c| c[:name] == 'Joseph Amoyal' && 
+                         c[:email] == 'jamoyal@gmail.com' &&
+                         c[:mobile] == '2404173112'
                     }
+
     puts "AOL not working"
     exit 1
   end

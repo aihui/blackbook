@@ -1,3 +1,7 @@
+== 1.0.7 / 2009-4-2
+
+* fixed another aol importing issue, refactored code
+
 == 1.0.6 / 2009-3-31
 
 * fixed aol importing issue

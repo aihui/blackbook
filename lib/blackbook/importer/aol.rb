@@ -79,18 +79,54 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
     uri.query = "command=all&sort=FirstLastNick&sortDir=Ascending&nameFormat=FirstLastNick&user=#{utoken}"
     page = agent.get uri.to_s
 
-    # Grab all the contacts
-    names = page.body.scan( /<span class="fullName">([^<]+)<\/span>/ ).flatten
-    emails = page.body.scan( /<span>Email 1:<\/span> <span>([^<]+)<\/span>/ ).flatten
-    mobiles = page.body.scan( /<span>Mobile: <\/span><span>([^<]+)<\/span>/ ).flatten
+    contacts = []
+    email, mobile = "",""
+    
+    names = page.search("//span[@class='fullName']")
+    
+    # Every contact has a fullName node, so for each fullName node, we grab the chunk of contact info
+    names.each do |n|
 
-    (0...[names.size,emails.size,mobiles.size].max).collect do |i|
-      {
-        :name => names[i],
-        :email => emails[i],
-        :mobile => mobiles[i]
-      }
+      # next_sibling.next_sibling skips:
+      # <tr>
+      #   <td class=\"sectionHeader\">Contact</td>
+      #	  <td class=\"sectionHeader\">Phone</td>
+      #   <td class=\"sectionHeader\">Home</td>
+      #	  <td class=\"sectionHeader\">Work</td>
+      # </tr>
+      # to give us the actual chunk of contact information
+      # then taking the children of that chunk gives us rows of contact info
+      contact_info_rows = n.parent.parent.next_sibling.next_sibling.children
+      
+      # Iterate through the rows of contact info
+      contact_info_rows.each do |row|
+        
+        # Iterate through the contact info in each row
+        row.children.each do |info|
+          # Get Email. There are two ".next_siblings" because space after "Email 1" element is processed as a sibling
+          if info.content.strip == "Email 1:" then email = info.next_sibling.next_sibling.content.strip end
+          
+          # If the contact info has a screen name but no email, use screenname@aol.com
+          if (info.content.strip == "Screen Name:" && email == "") then email = info.next_sibling.next_sibling.content.strip + "@aol.com" end
+          
+          # Get Mobile #'s
+          if info.content.strip == "Mobile:" then mobile = info.next_sibling.content.strip end
+            
+          # Maybe we can try and get zips later.  Right now the zip field can look like the street address field
+          # so we can not tell the difference.  There is no label node
+          #zip_match = /\A\D*(\d{5})-?\d{4}\D*\z/i.match(info.content.strip) 
+          #zip_match = /\A\D*(\d{5})[^\d-]*\z/i.match(info.content.strip)     
+        end  
+        
+      end
+       
+      contacts << { :name => n.content, :email => email, :mobile => mobile }
+      
+      # clear variables
+      email, mobile = "", ""
     end
+    
+    contacts
   end
   
   Blackbook.register :aol, self
