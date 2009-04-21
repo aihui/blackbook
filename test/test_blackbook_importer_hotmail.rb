@@ -93,15 +93,16 @@ class TestBlackbookImporterHotmail < Test::Unit::TestCase
 
     assert_nothing_raised do
       contacts = @importer.scrape_contacts
-      assert_equal 2, contacts.size
+      assert_equal 3, contacts.size
 
-      # Joe doesn't have a name, so we use his display name (which hotmail sets to his email)
-      assert contacts.detect{|c| c[:email] == 'joe.user@example.com'}
-      assert contacts.detect{|c| c[:name] == 'joe.user@example.com'}
+      # Joe doesn't have a name
+      assert contacts.detect{|c| c[:email] == 'joe.user@example.com' && c[:name].nil? }
 
       # Jane has both a name and an email
-      assert contacts.detect{|c| c[:email] == 'jane.user@example.com'}
-      assert contacts.detect{|c| c[:name] == 'Jane User'}
+      assert contacts.detect{|c| c[:email] == 'jane.user@example.com' && c[:name] == 'Jane User'}
+
+      # John doesn't have a name, just a Windows Live ID treated as a name
+      assert contacts.detect{|c| c[:email] == 'john.user@example.com' && c[:name].nil? }
     end
   end
 

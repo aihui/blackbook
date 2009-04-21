@@ -6,6 +6,7 @@ require 'fastercsv'
 class Blackbook::Importer::Csv < Blackbook::Importer::Base
 
   DEFAULT_COLUMNS = [:name,:email,:misc]
+  DEFAULT_PATTERN = /,/
 
   ##
   # Matches this importer to a file that contains CSV values
@@ -18,15 +19,16 @@ class Blackbook::Importer::Csv < Blackbook::Importer::Base
   # fetch_contacts! implementation for this importer
 
   def fetch_contacts!
-    lines = IO.readlines(options[:file].path)
+    lines   = IO.readlines(options[:file].path)
     columns = to_columns(lines.first)
     lines.shift if columns.first == :name
     columns = DEFAULT_COLUMNS.dup unless columns.first == :name
 
     contacts = Array.new
     lines.each do |l|
-      vals = l.split(',')
+      vals = l.split(pattern)
       next if vals.empty?
+      vals.map! {|x| x.gsub( /\A"/m, "" ).strip.gsub( /"\Z/m, "" ) }
       contacts << to_hash(columns, vals)
     end
 
@@ -43,7 +45,11 @@ class Blackbook::Importer::Csv < Blackbook::Importer::Base
 
   def to_columns(line) # :nodoc:
     columns = Array.new
-    tags = line.split(',')
+    if line.match(pattern)
+      tags = line.split(pattern)
+    else
+      tags = line.split(DEFAULT_PATTERN)
+    end
     # deal with "Name,E-mail..." oddity up front
     if tags.first =~ /^name$/i
       tags.shift
@@ -55,6 +61,10 @@ class Blackbook::Importer::Csv < Blackbook::Importer::Base
     end
     tags.each{|v| columns << v.strip.to_sym}
     columns
+  end
+  
+  def pattern
+    @pattern ||= (options[:pattern] || DEFAULT_PATTERN) rescue DEFAULT_PATTERN
   end
 
   Blackbook.register(:csv, self)

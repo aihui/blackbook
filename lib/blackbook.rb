@@ -8,6 +8,7 @@ class Blackbook
   
   class BlackbookError < ::StandardError; end
   class BadCredentialsError < BlackbookError; end
+  class LegacyAccount < BlackbookError; end
   
   attr_accessor :importers
   attr_accessor :exporters
@@ -72,5 +73,11 @@ class NilClass
   def empty?
     true
   end
+end
+
+class Object
+  def blank?
+    respond_to?(:empty?) ? empty? : !self
+  end  
 end
 

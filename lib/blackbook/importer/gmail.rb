@@ -5,11 +5,12 @@ require 'blackbook/importer/page_scraper'
 
 class Blackbook::Importer::Gmail < Blackbook::Importer::PageScraper
 
+  RETRY_THRESHOLD = 5
   ##
   # Matches this importer to an user's name/address
-
+  
   def =~(options = {})
-    options && options[:username] =~ /@gmail.com$/i ? true : false
+    options && options[:username] =~ /@(gmail|googlemail).com$/i ? true : false
   end
   
   def import(*args)
@@ -50,11 +51,18 @@ class Blackbook::Importer::Gmail < Blackbook::Importer::PageScraper
 
   def scrape_contacts    
     unless agent.cookies.find{|c| c.name == 'GAUSR' && 
-                           c.value == "mail:#{options[:username]}"}
+                           (c.value.include? "mail:#{options[:username]}")}
       raise( Blackbook::BadCredentialsError, "Must be authenticated to access contacts." )
     end
     
     page = agent.get('http://mail.google.com/mail/h/?v=cl&pnl=a')
+    title = page.search("//title").inner_text
+    if title == 'Redirecting'
+      redirect_text = page.search('//meta').first.attributes['content'].inner_text
+      url = redirect_text.match(/url='(http.*)'/i)[1]
+      page = agent.get(url)
+    end
+    
     contact_rows = page.search("//input[@name='c']/../..")
     contact_rows.collect do |row|
       columns = row/"td"

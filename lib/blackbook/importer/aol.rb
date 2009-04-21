@@ -22,27 +22,17 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
   def login
     page = agent.get( 'http://webmail.aol.com/' )
 
-    # This line seems to have problems, not sure why
-    # form = page.forms.name('AOLLoginForm').first
-    
-    # Try this method
-    form = nil
-    page.forms.each do |f|
-      if f.name == 'AOLLoginForm' then form = f end
-    end
-        
+    form = page.forms.find{|form| form.name == 'AOLLoginForm'}
     form.loginId = options[:username].split('@').first # Drop the domain
     form.password = options[:password]
     page = agent.submit(form, form.buttons.first)
 
-    # Fix by Tony Amoyal (I have seen forms with both of these names upon bad login)
-    raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." ) if page.form('loginForm')
-    raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." ) if page.form('AOLLoginForm')
-
-    # Fix by Tony Amoyal (We don't seem to need this anymore)
-    # aol bumps to a wait page while logging in.  if we can't scrape out the js then its a bad login
-    # wait_url = page.body.scan(/onLoad="checkError[^\)]+/).first.scan(/'([^']+)'/).last.first
-    # page = agent.get wait_url
+    case page.body
+    when /Invalid Screen Name or Password. Please try again./
+      raise( Blackbook::BadCredentialsError, "That username and password was not accepted. Please check them and try again." )
+    when /Terms of Service/
+      raise( Blackbook::LegacyAccount, "Your AOL account is not setup for WebMail. Please signup: http://webmail.aol.com")
+    end
 
     base_uri = page.body.scan(/^var gSuccessPath = \"(.+)\";/).first.first
     raise( Blackbook::BadCredentialsError, "You do not appear to be signed in." ) unless base_uri
@@ -61,7 +51,7 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
   # and a known uri that hosts their contact service. An array of hashes with
   # :name and :email keys is returned.
 
-  def scrape_contacts
+  def scrape_contacts    
     unless auth_cookie = agent.cookies.find{|c| c.name =~ /^Auth/}
       raise( Blackbook::BadCredentialsError, "Must be authenticated to access contacts." )
     end
@@ -79,54 +69,25 @@ class Blackbook::Importer::Aol < Blackbook::Importer::PageScraper
     uri.query = "command=all&sort=FirstLastNick&sortDir=Ascending&nameFormat=FirstLastNick&user=#{utoken}"
     page = agent.get uri.to_s
 
-    contacts = []
-    email, mobile = "",""
+    # Grab all the contacts
+    rows = page.search("table tr")
+    name, email = nil, nil
     
-    names = page.search("//span[@class='fullName']")
-    
-    # Every contact has a fullName node, so for each fullName node, we grab the chunk of contact info
-    names.each do |n|
-
-      # next_sibling.next_sibling skips:
-      # <tr>
-      #   <td class=\"sectionHeader\">Contact</td>
-      #	  <td class=\"sectionHeader\">Phone</td>
-      #   <td class=\"sectionHeader\">Home</td>
-      #	  <td class=\"sectionHeader\">Work</td>
-      # </tr>
-      # to give us the actual chunk of contact information
-      # then taking the children of that chunk gives us rows of contact info
-      contact_info_rows = n.parent.parent.next_sibling.next_sibling.children
-      
-      # Iterate through the rows of contact info
-      contact_info_rows.each do |row|
-        
-        # Iterate through the contact info in each row
-        row.children.each do |info|
-          # Get Email. There are two ".next_siblings" because space after "Email 1" element is processed as a sibling
-          if info.content.strip == "Email 1:" then email = info.next_sibling.next_sibling.content.strip end
-          
-          # If the contact info has a screen name but no email, use screenname@aol.com
-          if (info.content.strip == "Screen Name:" && email == "") then email = info.next_sibling.next_sibling.content.strip + "@aol.com" end
-          
-          # Get Mobile #'s
-          if info.content.strip == "Mobile:" then mobile = info.next_sibling.content.strip end
-            
-          # Maybe we can try and get zips later.  Right now the zip field can look like the street address field
-          # so we can not tell the difference.  There is no label node
-          #zip_match = /\A\D*(\d{5})-?\d{4}\D*\z/i.match(info.content.strip) 
-          #zip_match = /\A\D*(\d{5})[^\d-]*\z/i.match(info.content.strip)     
-        end  
-        
+    results = []
+    rows.each do |row|
+      new_name = row.search("span[@class='fullName']").inner_text.strip
+      if name.blank? || !new_name.blank?
+        name = new_name
       end
-       
-      contacts << { :name => n.content, :email => email, :mobile => mobile }
-      
-      # clear variables
-      email, mobile = "", ""
-    end
+      next if name.blank?
     
-    contacts
+      email = row.search("td[@class='sectionContent'] span:last").inner_text.strip
+      next if email.blank?
+    
+      results << {:name => name, :email => email}
+      name, email = nil, nil
+    end
+    results
   end
   
   Blackbook.register :aol, self
