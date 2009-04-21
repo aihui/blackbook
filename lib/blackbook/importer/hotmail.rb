@@ -75,20 +75,21 @@ class Blackbook::Importer::Hotmail < Blackbook::Importer::PageScraper
       raise( Blackbook::BadCredentialsError, "Must be authenticated to access contacts." )
     end
 
-    page = agent.get('PrintShell.aspx?type=contact')
-    rows = page.search("//div[@class='ContactsPrintPane cPrintContact BorderTop']")
-    rows.collect do |row|
-      name = row.search("//div[@class='cDisplayName']").first.innerText.strip
-      
-      vals = {}
-      row.search("//table/tr").each do |pair|
-        key = pair.search("/td[@class='TextAlignRight Label']").first.innerText.strip
-        val = pair.search("/td[@class='Value']").first.innerText.strip
-        vals[key.to_sym] = val
-      end
-      vals[:name] = name
-      vals[:email] = (vals['Personal e-mail:'.to_sym] || vals['Work e-mail:'.to_sym]).split(' ').first rescue ''
-      vals
+    page = agent.get('http://mail.live.com/')
+    page = agent.get(page.iframes.first.src).link_with(:text => 'Contact list').click
+    
+    contacts = parse_contacts(page.body)
+    while link = page.link_with(:text => 'Next page')
+      page = link.click
+      contacts += parse_contacts(page.body)
+    end
+    
+    contacts
+  end
+  
+  def parse_contacts(source)
+    source.scan(/ICc.*\:\[.*?,.*?,\['ct'\],'(.*?)',.*?,.*?,'(.*?)',.*\]/).collect do |name, email|
+      { :name => name.gsub(/\\x26\\x2364\\x3b/, '@'), :email => email.gsub(/\\x40/, '@') }
     end
   end
   

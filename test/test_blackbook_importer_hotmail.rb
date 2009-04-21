@@ -63,16 +63,33 @@ class TestBlackbookImporterHotmail < Test::Unit::TestCase
     end
   end
 
+  def stub_url_with_fixture(importer, url, fixture)
+    importer.agent.expects(:get).with(url).once.returns(
+      page = stub_page_with_fixture(url, fixture)
+    )
+    page
+  end
+  
+  def stub_click_with_fixture(link, fixture)
+    link.expects(:click).once.returns(
+      page = stub_page_with_fixture(link.href, fixture)
+    )
+    page
+  end
+  
+  def stub_page_with_fixture(url, fixture)
+    WWW::Mechanize::Page.new(URI.parse(url), {'content-type' => 'text/html'}, load_fixture(fixture).join, nil, nil)
+  end
+
   def test_scrape_contacts
     cookie = WWW::Mechanize::Cookie.new('MSPPre', 'user@hotmail.com')
     cookie.domain = 'localhost'
     @importer.agent.expects(:cookies).once.returns([cookie])
 
-    response = {'content-type' => 'text/html'}
-    body = load_fixture('hotmail_contacts.html').join
-    uri = URI.parse('http://by135w.bay135.mail.live.com/mail/')
-    page = WWW::Mechanize::Page.new(uri, response, body, code=nil, mech=nil)
-    @importer.agent.expects(:get).with('PrintShell.aspx?type=contact').once.returns(page)
+    page = stub_url_with_fixture(@importer, 'http://mail.live.com/', 'hotmail_main_frame.html')
+    page = stub_url_with_fixture(@importer, page.iframes.first.src, 'hotmail_menu_frame.html')
+    page = stub_click_with_fixture(page.link_with(:text => 'Contact list'), 'hotmail_contacts_page_1.html')
+    page = stub_click_with_fixture(page.link_with(:text => 'Next page'), 'hotmail_contacts_page_2.html')
 
     assert_nothing_raised do
       contacts = @importer.scrape_contacts
