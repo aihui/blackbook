@@ -90,7 +90,7 @@ class Blackbook::Importer::Hotmail < Blackbook::Importer::PageScraper
   
   def parse_contacts(source)
     source.scan(/ICc.*\:\[.*?,.*?,\['ct'\],'(.*?)',.*?,.*?,'(.*?)',.*\]/).collect do |name, email|
-      { :name => name.gsub(/\\x26\\x2364\\x3b/, '@'), :email => email.gsub(/\\x40/, '@') }
+      { :name => (name =~ /\\x26\\x2364\\x3b/ ? nil : name), :email => email.gsub(/\\x40/, '@') }
     end
   end
   
